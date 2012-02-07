@@ -1,2 +1,12 @@
 
 .DS_Store
+.dep/*
+*.o
+*.bin
+*.elf
+*.hex
+*.lss
+*.lst
+*.map
+*.sym
+
