@@ -109,59 +109,30 @@ static void tim_init(void)
     uint16_t CCR4_Val = 1000;
     uint16_t PrescalerValue = 0;
 
-	/* 
-    For example, you can measure the period (in TIMx_CCR1 register)
-    and the duty cycle (in TIMx_CCR2 register) of the PWM applied on
-    TI1 using the following procedure (depending on CK_INT frequency
-    and prescaler value):
-    ● Select the active input for TIMx_CCR1: write the CC1S bits
-      to 01 in the TIMx_CCMR1 register (TI1 selected).
-    ● Select the active polarity for TI1FP1 (used both for capture
-      in TIMx_CCR1 and counter clear): write the CC1P bit to ‘0’
-      (active on rising edge).
-    ● Select the active input for TIMx_CCR2: write the CC2S bits
-      to 10 in the TIMx_CCMR1 register (TI1 selected).
-    ● Select the active polarity for TI1FP2 (used for capture in
-      TIMx_CCR2): write the CC2P bit to ‘1’ (active on falling
-      edge).
-    ● Select the valid trigger input: write the TS bits to 101 in
-      the TIMx_SMCR register (TI1FP1 selected).
-    ● Configure the slave mode controller in reset mode: write the
-      SMS bits to 100 in the TIMx_SMCR register.
-    ● Enable the captures: write the CC1E and CC2E bits to ‘1’
-      in the TIMx_CCER register
-	*/
-
     /* Compute the prescaler value */
-	PrescalerValue = (uint16_t) (SystemCoreClock / 500) - 1;
+	PrescalerValue = (uint16_t) (SystemCoreClock / 2000) - 1;
 	/* Set Prescaler to specified value */
 	TIM3->PSC = PrescalerValue;
 	TIM3->ARR = 0xFFFFF;
 
 	/* ENABLE CHANNELS 3 & 4 */
 	
-	/* Capture Compare Mode Register 2 
-	   Input capture 3 mapped to timer input 3
-	   Input capture 4 mapped to timer input 4
-	   NO input filter
-	   NO input prescaler */    
+	/* Configure Capture Compare Mode Register 2 
+	   * Input capture 3 mapped to timer input 3
+	   * Input capture 4 mapped to timer input 4
+	   * NO input filter
+	   * NO input prescaler */    
 	TIM3->CCMR2 =  TIM_CCMR2_CC3S_1 | TIM_CCMR2_CC4S_1;
-
+	   
+	/* Set polarity */
+   	TIM3->CCER |= TIM_CCER_CC3P | TIM_CCER_CC4P;
 
 	/* Configure TIM3 to send interrupts when it detects transition in either channels, 3 or 4 */
-	TIM3->DIER = TIM_DIER_CC3IE | TIM_DIER_CC4IE; 
+	TIM3->DIER = TIM_DIER_CC3IE | TIM_DIER_CC4IE;
+	
 	/* Enable capture */
     TIM3->CCER |= TIM_CCER_CC3E | TIM_CCER_CC4E;
-	
-	/* Set polarity */
-	TIM3->CCER |= TIM_CCER_CC3P | TIM_CCER_CC4P;
-	
-	
-	/* Configure slave mode controller in reset mode */
-	TIM3->SMCR |= TIM_SMCR_SMS_2;
-	
-/*	TIM3->DIER = TIM_DIER_UIE; */
-	
+		
 	/* Enable timer */
 	TIM3->CR1 = TIM_CR1_CEN;
     NVIC_EnableIRQ(TIM3_IRQn);
@@ -170,7 +141,6 @@ static void tim_init(void)
 
 static void nvic_init(void)
 {
-    
  	/*  Configure SysTick to tick every ms */
     if (SysTick_Config((uint16_t) (SystemCoreClock / 1000)  - 1)) {
         while (1);              /* Capture error */
@@ -179,11 +149,16 @@ static void nvic_init(void)
 
 void TIM3_IRQHandler(void)
 {
-	/*if (TIM3->SR & TIM_SR_CC3OF) {
-		TIM3->SR &= ~TIM_SR_CC3OF;
-	} else if (TIM3->SR & TIM_SR_CC4OF) {
-		TIM3->SR &= ~TIM_SR_CC3OF; 
-	} else */ if (TIM3->SR & TIM_SR_CC3IF) {
+	/* In the interrupt handler
+	   - check who interrupted us: currently interesting interrupts are those arising due to capture / compare event
+	   - check the timer count TIM3->CNT and save it in the state machine
+	   - transition the state machine appropriately
+	   
+	   - Timing can start from whichever capture/compare (CC) channel BUT MUST end with different one
+	   - Remember to debounce the inputs!
+	 */
+	
+	if (TIM3->SR & TIM_SR_CC3IF) {
 		TIM3->SR &= ~TIM_SR_CC3IF; /* Clear the interrupt flag */
 	  	LED_GPIO->BRR = (1 << GREEN_LED_PIN); /* toggle LED state */
 	} else if (TIM3->SR & TIM_SR_CC4IF) {
