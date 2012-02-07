@@ -1,0 +1,7 @@
+STM32 BASED SPEED MEASURING FIRMWARE
+====================================
+
+
+This project aims to create a firmware to be uploaded in STM32VLDiscovery device, which allows to measure the time a falling object falls in a copper pipe. Pipe is fitted with two IR LED and phototransistor pairs, which initiate and terminate the timing. The purpose of dropping objects through a copper (good conductor) pipe is to demonstrate in a physics lecture the effect of eddy currents - a permanent magnet falling freely through a conducting pipe induces eddy currents in the pipe, which according to Lenz's law act to oppose the changing magnetic field and thereby slowing down the permanent magnet.
+
+The timing is based on STM32's TIMER functionality.
