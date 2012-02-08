@@ -72,15 +72,15 @@ Light port 2 is connected to PB0, which is alternate function to TIM3_CH3
 #define TRIGGER_DEBOUNCE			10
 
 enum counter_states {
-	COUNTER_READY	 = 0x0,
-	COUNTER_STARTED  = 0x1,
-	COUNTER_STOPPED  = 0x2
+    COUNTER_READY = 0x0,
+    COUNTER_STARTED = 0x1,
+    COUNTER_STOPPED = 0x2
 };
 
 struct stopwatch {
-	uint16_t 	   time_start;
-	uint16_t 	   time_elapsed;
-	enum counter_states counter;
+    uint16_t time_start;
+    uint16_t time_elapsed;
+    enum counter_states counter;
 };
 
 
@@ -91,4 +91,4 @@ static void tim_init(void);
 static void delay_ms(uint32_t ival);
 static void nvic_init(void);
 
-#endif /* end of include guard: MAIN_H_3P6METYV */
+#endif                          /* end of include guard: MAIN_H_3P6METYV */
