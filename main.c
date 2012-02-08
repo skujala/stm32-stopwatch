@@ -1,17 +1,27 @@
-/**
-  ******************************************************************************
-  * @file     
-  * @author  
-  * @version 
-  * @date    
-  * @brief   Main program body
-  ******************************************************************************
-  * @copy
-  *
-  *
-  * <h2><center>&copy; COPYRIGHT 2012 Sami Kujala </center></h2>
-  */
+/* 	
+	Copyright (c) 2012, Sami Kujala
+   	All rights reserved.
+	
+	Redistribution and use in source and binary forms, with or without
+	modification, are permitted provided that the following conditions are met: 
 
+	1. Redistributions of source code must retain the above copyright notice, this
+	   list of conditions and the following disclaimer. 
+	2. Redistributions in binary form must reproduce the above copyright notice,
+	   this list of conditions and the following disclaimer in the documentation
+	   and/or other materials provided with the distribution. 
+
+	THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
+	ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+	WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+	DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR
+	ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
+	(INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+	LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
+	ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+	(INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+	SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+*/
 
 #include <stm32f10x.h>
 
@@ -19,52 +29,41 @@
 #include <stdio.h>
 #include <unistd.h>
 
-#define GPIO_CNF_INPUT_ANALOG		0
-#define GPIO_CNF_INPUT_FLOATING		1
-#define GPIO_CNF_INPUT_PULLUPDOWN	2
+#include "main.h"
 
-#define GPIO_CNF_OUTPUT_PUSHPULL	0
-#define GPIO_CNF_OUTPUT_OPENDRAIN	1
-#define GPIO_CNF_AFIO_PUSHPULL		2
-#define GPIO_CNF_AFIO_OPENDRAIN		3
-
-#define GPIO_MODE_INPUT				0
-#define GPIO_MODE_OUTPUT10MHz		1
-#define GPIO_MODE_OUTPUT2MHz		2
-#define GPIO_MODE_OUTPUT50MHz		3
-
-#define GPIOCONF(mode, cnf)	((cnf << 2) | (mode))
-#define GPIOPINCONFL(pin, conf) (conf << (pin * 4))
-#define GPIOPINCONFH(pin, conf) (conf << ((pin - 8) * 4))
-
-#define CONFMASKL(pin) ((uint32_t)~(15 << (pin * 4)))
-#define CONFMASKH(pin) ((uint32_t)~(15 << ((pin - 8) * 4)))
-
-/* LIGHT PORT CONFIGURATION
-
-Light port 1 is connected to PB0, which is alternate function to TIM3_CH3
-Light port 2 is connected to PB1, which is alternate function to TIM3_CH4
-
-*/
-#define LIGHTPORT1_PIN 0
-#define LIGHTPORT2_PIN 1
-#define LIGHTPORT_GPIO GPIOB
-#define LIGHTPORT_GPIO_ENABLE RCC_APB2ENR_IOPBEN
-
-#define GREEN_LED_PIN 9
-#define BLUE_LED_PIN 8
-#define LED_GPIO GPIOC
-#define LED_GPIO_ENABLE RCC_APB2ENR_IOPCEN
-
-#define TIMER3_GPIO_ENABLE RCC_APB1ENR_TIM3EN
-#define USART1_GPIO_ENABLE RCC_APB2ENR_IOPAEN | RCC_APB2ENR_USART1EN
-
-#define USART_RX_GPIO	GPIOA
-#define USART_RX_PIN	 10
-#define USART_TX_GPIO	GPIOA
-#define USART_TX_PIN	 9
-	  
 volatile uint32_t ticks = 0L;
+
+volatile struct stopwatch stopwatch;
+
+/**
+  * @brief  Main program.
+  * @param  None
+  * @retval : None
+  */
+int main(void)
+{
+    stopwatch.time_start = 0;
+    stopwatch.time_elapsed = 0xFFFF;
+    stopwatch.counter = COUNTER_READY;
+    
+    /*
+     * Enable peripherals
+     */
+    rcc_init();
+    nvic_init();
+    gpio_init();
+//    usart_init();
+    tim_init();
+
+    while (1) {
+		LED_GPIO->ODR ^= (1 << BLUE_LED_PIN);
+        delay_ms(100);
+		LED_GPIO->ODR ^= (1 << BLUE_LED_PIN);
+		delay_ms(700);
+    }
+    
+    return 0;
+}
 
 
 /* Function definitions */
@@ -88,32 +87,25 @@ static void usart_init(void)
 
 static void gpio_init(void)
 {
-	LED_GPIO->CRH = (LED_GPIO->CRH & CONFMASKH(BLUE_LED_PIN)) | GPIOPINCONFH(BLUE_LED_PIN,   GPIOCONF(GPIO_MODE_OUTPUT50MHz, GPIO_CNF_OUTPUT_PUSHPULL));
-    LED_GPIO->CRH = (LED_GPIO->CRH & CONFMASKH(GREEN_LED_PIN)) | GPIOPINCONFH(GREEN_LED_PIN, GPIOCONF(GPIO_MODE_OUTPUT50MHz, GPIO_CNF_OUTPUT_PUSHPULL));
+	LED_GPIO->CRH |= GPIOPINCONFH(BLUE_LED_PIN, GPIOCONF(GPIO_MODE_OUTPUT50MHz, GPIO_CNF_OUTPUT_PUSHPULL))
+    			  |  GPIOPINCONFH(GREEN_LED_PIN, GPIOCONF(GPIO_MODE_OUTPUT50MHz, GPIO_CNF_OUTPUT_PUSHPULL));
 	
-	// USART_TX_GPIO->CRH = (USART_TX_GPIO->CRH & CONFMASKH(USART_TX_PIN)) | GPIOPINCONFH(USART_TX_PIN,   GPIOCONF(GPIO_MODE_OUTPUT2MHz, GPIO_CNF_AFIO_PUSHPULL));	
+	// USART_TX_GPIO->CRH |= GPIOPINCONFH(USART_TX_PIN,   GPIOCONF(GPIO_MODE_OUTPUT2MHz, GPIO_CNF_AFIO_PUSHPULL));	
 	
-	LIGHTPORT_GPIO->CRL = (LIGHTPORT_GPIO->CRL & CONFMASKL(LIGHTPORT1_PIN)) | GPIOPINCONFL(LIGHTPORT1_PIN, GPIOCONF(GPIO_MODE_INPUT, GPIO_CNF_INPUT_PULLUPDOWN));
-	LIGHTPORT_GPIO->CRL = (LIGHTPORT_GPIO->CRL & CONFMASKL(LIGHTPORT2_PIN)) | GPIOPINCONFL(LIGHTPORT2_PIN, GPIOCONF(GPIO_MODE_INPUT, GPIO_CNF_INPUT_PULLUPDOWN));
-
-    /*  Remap TIM3_CH3 to GPIOC_Pin8 AKA the green LED 
-	AFIO->MAPR = AFIO_MAPR_TIM3_REMAP;
-	*/
-	
-	
+	LIGHTPORT_GPIO->CRL |= GPIOPINCONFL(LIGHTPORT1_PIN, GPIOCONF(GPIO_MODE_INPUT, GPIO_CNF_INPUT_FLOATING))
+			 			|  GPIOPINCONFL(LIGHTPORT2_PIN, GPIOCONF(GPIO_MODE_INPUT, GPIO_CNF_INPUT_FLOATING));	
 }
 
 
 static void tim_init(void)
 {
-    uint16_t CCR4_Val = 1000;
     uint16_t PrescalerValue = 0;
 
     /* Compute the prescaler value */
-	PrescalerValue = (uint16_t) (SystemCoreClock / 2000) - 1;
+	PrescalerValue = (uint16_t) (SystemCoreClock / TIMER_RESOLUTION) - 1;
 	/* Set Prescaler to specified value */
 	TIM3->PSC = PrescalerValue;
-	TIM3->ARR = 0xFFFFF;
+	TIM3->ARR = 0xFFFF;
 
 	/* ENABLE CHANNELS 3 & 4 */
 	
@@ -158,9 +150,32 @@ void TIM3_IRQHandler(void)
 	   - Remember to debounce the inputs!
 	 */
 	
-	if (TIM3->SR & TIM_SR_CC3IF) {
-		TIM3->SR &= ~TIM_SR_CC3IF; /* Clear the interrupt flag */
-	  	LED_GPIO->BRR = (1 << GREEN_LED_PIN); /* toggle LED state */
+    uint16_t now = TIM3->CNT;
+    uint16_t elapsed = 0;
+	
+	if (TIM3->SR & TIM_SR_CC3IF || TIM3->SR & TIM_SR_CC4IF) {
+		TIM3->SR &= ~(TIM_SR_CC3IF | TIM_SR_CC4IF); /* Clear the interrupt flags */
+	  	LED_GPIO->ODR ^= (1 << GREEN_LED_PIN); /* toggle LED state */
+		
+		switch (stopwatch.counter) {
+			case COUNTER_READY:
+                stopwatch.counter = COUNTER_STARTED;
+				stopwatch.time_start = now;
+                stopwatch.time_elapsed = 0xFFFF;
+				break;
+			case COUNTER_STARTED:
+                elapsed = now - stopwatch.time_start;
+                
+                if (elapsed > TRIGGER_DEBOUNCE) {
+                    stopwatch.counter = COUNTER_STOPPED;
+                    stopwatch.time_elapsed = elapsed;
+                }
+                break;
+            default:                                        /* hang here */
+                while (1) {}; 
+			
+		}
+		
 	} else if (TIM3->SR & TIM_SR_CC4IF) {
 		TIM3->SR &= ~TIM_SR_CC4IF; /* Clear the interrupt flag */
 	  	LED_GPIO->BSRR = (1 << GREEN_LED_PIN); /* toggle LED state */
@@ -179,30 +194,4 @@ void delay_ms(uint32_t ival)
     while(ticks - now < ival) {
         asm("nop");
     }
-}
-
-/**
-  * @brief  Main program.
-  * @param  None
-  * @retval : None
-  */
-int main(void)
-{
-    /*
-     * Enable peripherals
-     */
-    rcc_init();
-    nvic_init();
-    gpio_init();
-//    usart_init();
-    tim_init();
-
-    while (1) {
-		LED_GPIO->ODR ^= (1 << BLUE_LED_PIN);
-        delay_ms(100);
-		LED_GPIO->ODR ^= (1 << BLUE_LED_PIN);
-		delay_ms(700);
-    }
-    
-    return 0;
 }
