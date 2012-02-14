@@ -33,7 +33,7 @@
 
 volatile uint32_t ticks = 0L;
 
-volatile struct stopwatch stopwatch;
+volatile struct stopwatch stopwatch = { 0, 0xFFFF, COUNTER_READY };
 
 /**
   * @brief  Main program.
@@ -60,6 +60,27 @@ int main(void)
         delay_ms(100);
         LED_GPIO->ODR ^= (1 << BLUE_LED_PIN);
         delay_ms(700);
+        
+        if (stopwatch.counter == COUNTER_STOPPED){
+            __disable_irq();
+            stopwatch.time_start = 0;
+            stopwatch.time_elapsed = 0xFFFF;
+            stopwatch.counter = COUNTER_READY;
+            __enable_irq();
+            LED_GPIO->ODR ^= (1 << BLUE_LED_PIN);
+            delay_ms(100);
+            LED_GPIO->ODR ^= (1 << BLUE_LED_PIN);
+            delay_ms(100);
+            LED_GPIO->ODR ^= (1 << BLUE_LED_PIN);
+            delay_ms(100);
+            LED_GPIO->ODR ^= (1 << BLUE_LED_PIN);
+            delay_ms(100);
+            LED_GPIO->ODR ^= (1 << BLUE_LED_PIN);
+            delay_ms(100);
+            LED_GPIO->ODR ^= (1 << BLUE_LED_PIN);
+            delay_ms(100);
+        }
+        
     }
 
     return 0;
@@ -163,33 +184,26 @@ void TIM3_IRQHandler(void)
     uint16_t now = TIM3->CNT;
     uint16_t elapsed = 0;
 
-    if (TIM3->SR & TIM_SR_CC3IF || TIM3->SR & TIM_SR_CC4IF) {
-        TIM3->SR &= ~(TIM_SR_CC3IF | TIM_SR_CC4IF);     /* Clear the interrupt flags */
-        LED_GPIO->ODR ^= (1 << GREEN_LED_PIN);  /* toggle LED state */
+    if (TIM3->SR & TIM_SR_CC3IF) {
+        TIM3->SR &= ~(TIM_SR_CC3IF);     /* Clear the interrupt flags */
+        elapsed = now - stopwatch.time_start;
 
-        switch (stopwatch.counter) {
-        case COUNTER_READY:
+        if (elapsed > TRIGGER_DEBOUNCE && stopwatch.counter == COUNTER_STARTED) {
+            LED_GPIO->BRR = (1 << GREEN_LED_PIN);  /* toggle LED state */
+            
+            stopwatch.counter = COUNTER_STOPPED;
+            stopwatch.time_elapsed = elapsed;
+        }
+    } else if (TIM3->SR & TIM_SR_CC4IF) {
+        TIM3->SR &= ~(TIM_SR_CC4IF);      /* Clear the interrupt flag */
+
+        if (stopwatch.counter == COUNTER_READY){
+            LED_GPIO->BSRR = (1 << GREEN_LED_PIN);  /* toggle LED state */
+            
             stopwatch.counter = COUNTER_STARTED;
             stopwatch.time_start = now;
             stopwatch.time_elapsed = 0xFFFF;
-            break;
-        case COUNTER_STARTED:
-            elapsed = now - stopwatch.time_start;
-
-            if (elapsed > TRIGGER_DEBOUNCE) {
-                stopwatch.counter = COUNTER_STOPPED;
-                stopwatch.time_elapsed = elapsed;
-            }
-            break;
-        default:               /* hang here */
-            while (1) {
-            };
-
         }
-
-    } else if (TIM3->SR & TIM_SR_CC4IF) {
-        TIM3->SR &= ~TIM_SR_CC4IF;      /* Clear the interrupt flag */
-        LED_GPIO->BSRR = (1 << GREEN_LED_PIN);  /* toggle LED state */
     }
 }
 
