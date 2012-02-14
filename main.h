@@ -67,9 +67,13 @@ Light port 2 is connected to PB0, which is alternate function to TIM3_CH3
 #define GPIO_MODE_OUTPUT10MHz		0x1
 #define GPIO_MODE_OUTPUT2MHz		0x2
 #define GPIO_MODE_OUTPUT50MHz		0x3
-
+ 
 #define TIMER_RESOLUTION			2000
+#define TIMER_STEP					(1000 / TIMER_RESOLUTION) /* In units of ms */ 
 #define TRIGGER_DEBOUNCE			10
+
+#define STDOUT_USART				1
+
 
 enum counter_states {
     COUNTER_READY = 0x0,
@@ -83,12 +87,5 @@ struct stopwatch {
     enum counter_states counter;
 };
 
-
-static void rcc_init(void);
-static void usart_init(void);
-static void gpio_init(void);
-static void tim_init(void);
-static void delay_ms(uint32_t ival);
-static void nvic_init(void);
 
 #endif                          /* end of include guard: MAIN_H_3P6METYV */

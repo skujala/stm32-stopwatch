@@ -6,7 +6,7 @@ TARGET = main
 
 # List C source files here. (C dependencies are automatically generated.)
 # use file-extension c for "c-only"-files
-SRC =	main.c
+SRC =	main.c newlib_stubs.c
 
 
 include makefile.mk
