@@ -9,7 +9,7 @@
 # Modified for the STM32F100 Medium Density Value Line devices
 # by Sami Kujala, Feb 2012
 #
-# based on the WinAVR makefile written by Eric B. Weddington, Jörg Wunsch, et al.
+# based on the WinAVR makefile written by Eric B. Weddington, JÃ¶rg Wunsch, et al.
 # Released to the Public Domain
 # Please read the make user manual!
 #
@@ -47,13 +47,9 @@ USE_THUMB_MODE = YES
 
 
 
-# The following are all required if you are to use the ST peripheral driver library V3
-# The next two should be copied into the project directory
-#SRC += stm32f10x_it.c
-# While these two can stay in the CM3 folder as part of the library
-SRC += core_cm3.c
-SRC += system_stm32f10x.c
 
+# While these two can stay in the CM3 folder as part of the library
+SRC += core_cm3.c system_stm32f10x.c version.c
 
 # List C source files here which must be compiled in ARM-Mode.
 # use file-extension c for "c-only"-files
@@ -254,6 +250,7 @@ NM = $(TCHAIN)-nm
 REMOVE = rm -f
 REMOVEDIR = rm -r
 COPY = cp
+GIT = git
 
 # Define Messages
 # English
@@ -456,6 +453,15 @@ $(AOBJARM) : %.o : %.S
 	@echo
 	@echo $(MSG_ASSEMBLING_ARM) $<
 	$(CC) -c $(ALL_ASFLAGS) $< -o $@
+
+# Generate version and build info from git
+# Shameless copy from http://stackoverflow.com/questions/1704907/how-can-i-get-my-c-code-to-automatically-print-out-its-git-version-hash 
+version.c: force
+	$(GIT) rev-parse HEAD | awk ' BEGIN {print "#include \"version.h\""} {print "const char build_git_sha[] = \"" $$0"\";"} END {}' > version.c
+	date | awk 'BEGIN {} {print "const char build_git_time[] = \""$$0"\";"} END {} ' >> version.c
+
+force: ;
+
 
 
 # Target: clean project.
