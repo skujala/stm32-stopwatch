@@ -114,7 +114,7 @@ int _read(int file, char *ptr, int len) {
     case STDIN_FILENO:
         for (n = 0; n < len; n++) {
             while (!(MYSTDIN->SR & USART_SR_RXNE)) {}
-            char c = (char)(MYSTDIN->DR & (uint16_t)0x01FF);
+            char c = (char)(MYSTDIN->DR & 0xFF);
             *ptr++ = c;
             num++;
         }
@@ -175,13 +175,13 @@ int _write(int file, char *ptr, int len) {
 	    case STDOUT_FILENO: /*stdout*/
 	        for (n = 0; n < len; n++) {
 	            while (!(MYSTDOUT->SR & USART_SR_TXE)) {}
-	            MYSTDOUT->DR = (*ptr++ & (uint16_t) 0x01FF);
+	            MYSTDOUT->DR = (*ptr++ & 0xFF);
 	        }
 	        break;
 	    case STDERR_FILENO: /* stderr */
 	        for (n = 0; n < len; n++) {
 	            while (!(MYSTDERR->SR & USART_SR_TXE)) {}
-	            MYSTDERR->DR = (*ptr++ & (uint16_t) 0x01FF);
+	            MYSTDERR->DR = (*ptr++ & 0xFF);
 	        }
 	        break;
 	    default:

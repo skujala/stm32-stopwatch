@@ -36,23 +36,18 @@ Light port 1 is connected to PB1, which is alternate function to TIM3_CH4
 Light port 2 is connected to PB0, which is alternate function to TIM3_CH3
 
 */
-#define LIGHTPORT1_PIN 0
-#define LIGHTPORT2_PIN 1
-#define LIGHTPORT_GPIO GPIOB
-#define LIGHTPORT_GPIO_ENABLE RCC_APB2ENR_IOPBEN
+#define LIGHTPORT_GPIO 	GPIOB
+#define LIGHTPORT1_PIN 	0
+#define LIGHTPORT2_PIN 	1
 
-#define GREEN_LED_PIN 9
-#define BLUE_LED_PIN 8
-#define LED_GPIO GPIOC
-#define LED_GPIO_ENABLE RCC_APB2ENR_IOPCEN
-
-#define TIMER3_GPIO_ENABLE RCC_APB1ENR_TIM3EN
-#define USART1_GPIO_ENABLE RCC_APB2ENR_IOPAEN | RCC_APB2ENR_USART1EN
+#define LED_GPIO 		GPIOC
+#define GREEN_LED_PIN	9
+#define BLUE_LED_PIN 	8
 
 #define USART_RX_GPIO	GPIOA
-#define USART_RX_PIN	 10
 #define USART_TX_GPIO	GPIOA
-#define USART_TX_PIN	 9
+#define USART_TX_PIN	9
+#define USART_RX_PIN	10
 
 #define GPIO_CNF_OUTPUT_PUSHPULL	0x0
 #define GPIO_CNF_OUTPUT_OPENDRAIN	0x1
@@ -68,8 +63,17 @@ Light port 2 is connected to PB0, which is alternate function to TIM3_CH3
 #define GPIO_MODE_OUTPUT2MHz		0x2
 #define GPIO_MODE_OUTPUT50MHz		0x3
  
+#define CONFMASKL(pin) ((uint32_t)~(15 << (pin * 4)))
+#define CONFMASKH(pin) ((uint32_t)~(15 << ((pin - 8) * 4)))
+		
+#define CONF_GPIOH(gpio, pin, mode, cnf) do { (gpio)->CRH = ((gpio)->CRH & CONFMASKH((pin))) | GPIOPINCONFH((pin), GPIOCONF((mode), (cnf))); } while(0)
+#define CONF_GPIOL(gpio, pin, mode, cnf) do { (gpio)->CRL = ((gpio)->CRL & CONFMASKL((pin))) | GPIOPINCONFL((pin), GPIOCONF((mode), (cnf))); } while(0)		
+
 #define TIMER_RESOLUTION			2000
-#define TIMER_STEP					(1000 / TIMER_RESOLUTION) /* In units of ms */ 
+#define TIMER_SCALE					1000
+#define TIMER_COUNTS_IN_MS(counts) 	(TIMER_SCALE * (counts) / TIMER_RESOLUTION)
+		
+		
 #define TRIGGER_DEBOUNCE			10
 
 #define STDOUT_USART				1
@@ -82,8 +86,8 @@ enum counter_states {
 };
 
 struct stopwatch {
-    uint16_t time_start;
-    uint16_t time_elapsed;
+    uint16_t counts_start;
+    uint16_t counts_elapsed;
     enum counter_states counter;
 };
 

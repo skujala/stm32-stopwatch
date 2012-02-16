@@ -24,7 +24,6 @@
 */
 
 #include <stm32f10x.h>
-#include <core_cm3.h>
 
 #include <stdint.h>
 #include <stdio.h>
@@ -57,22 +56,23 @@ static void nvic_init(void);
   */
 int main(void)
 {
-    int i;
-    
+    int i;    
     stopwatch_reset(&stopwatch);
 	
     /*
      * Enable peripherals
      */
     rcc_init();
-    nvic_init();
     gpio_init();
+    nvic_init();
     usart_init();
     tim_init();
 
     delay_ms(100);
     
-    iprintf("Oheislaitteet alustettu\r\n");
+    _write(1,"Oheislaitteet alustettu\r\n", 25);
+    LED_GPIO->BSRR = (1 << BLUE_LED_PIN);
+
     
     while (1) {
         if (stopwatch.counter == COUNTER_STOPPED){
@@ -80,7 +80,7 @@ int main(void)
                 LED_GPIO->ODR ^= (1 << BLUE_LED_PIN);
                 delay_ms(50);                
             }
-            iprintf("Aika: %d ms\r\n", 1000 * stopwatch.time_elapsed / TIMER_RESOLUTION );
+            iprintf("Aika: %d ms\r\n", TIMER_COUNTS_IN_MS(stopwatch.counts_elapsed));
                 
             stopwatch_reset(&stopwatch);
         }
@@ -95,8 +95,8 @@ int main(void)
 static void stopwatch_reset(volatile struct stopwatch *sw)
 {
 	__disable_irq ();	
-    sw->time_start = 0;
-    sw->time_elapsed = 0xFFFF;
+    sw->counts_start = 0;
+    sw->counts_elapsed = 0xFFFF;
     sw->counter = COUNTER_READY;
 	__enable_irq ();
 }
@@ -104,18 +104,28 @@ static void stopwatch_reset(volatile struct stopwatch *sw)
 static void rcc_init(void)
 {
     /* GPIO Initialization - enable clocks etc */
-    RCC->APB2ENR |=
-        LIGHTPORT_GPIO_ENABLE | USART1_GPIO_ENABLE | LED_GPIO_ENABLE |
-        RCC_APB2ENR_AFIOEN;
-    RCC->APB1ENR |= TIMER3_GPIO_ENABLE;
+    RCC->APB2ENR |= RCC_APB2ENR_IOPAEN | RCC_APB2ENR_USART1EN 	/* USART1 GPIO ENABLE */
+		| RCC_APB2ENR_IOPCEN 									/* LED GPIO ENABLE */
+		| RCC_APB2ENR_IOPBEN 									/* LIGHTPORT GPIO ENABLE */
+		| RCC_APB2ENR_AFIOEN; 									/* ALTERNATE FUNCTION GPIO ENABLE */
+    RCC->APB1ENR |= RCC_APB1ENR_TIM3EN; /* ENABLE TIM3 TIMER GPIO */
+}
+
+static void gpio_init(void)
+{
+	CONF_GPIOH(LED_GPIO, BLUE_LED_PIN, GPIO_MODE_OUTPUT50MHz, GPIO_CNF_OUTPUT_PUSHPULL);
+	CONF_GPIOH(LED_GPIO, GREEN_LED_PIN, GPIO_MODE_OUTPUT50MHz, GPIO_CNF_OUTPUT_PUSHPULL);
+		
+	CONF_GPIOH(USART_TX_GPIO, USART_TX_PIN, GPIO_MODE_OUTPUT2MHz, GPIO_CNF_AFIO_PUSHPULL);	
+
+	CONF_GPIOL(LIGHTPORT_GPIO, LIGHTPORT1_PIN, GPIO_MODE_INPUT, GPIO_CNF_INPUT_FLOATING);
+	CONF_GPIOL(LIGHTPORT_GPIO, LIGHTPORT2_PIN, GPIO_MODE_INPUT, GPIO_CNF_INPUT_FLOATING);
 }
 
 
-static void usart_init(void)
-{	
-    /* Enable USART1 transmitter: UE - usart enable & TE - transmitter enable. Do not enable the receiver, we are not interested in receiving any bytes from anybody*/
-    USART1->CR1 = USART_CR1_UE | USART_CR1_TE;
 
+static void usart_init(void)
+{	    
 	/* We want baudrate 115200 */	
 	/* want usartdiv 24 000 000L / (115 200 * 16) = 13.0208333...   */
 	/* which is 208 or 0xd0 when encoded in 12.4 fixed-point format */
@@ -128,29 +138,12 @@ static void usart_init(void)
     USART1->CR1 &= ~(USART_CR1_M | USART_CR1_PCE);
     /* Clear stop bits => 1 stop bit */
     USART1->CR2 &= ~(USART_CR2_STOP_0 | USART_CR2_STOP_1);
+    
+    /* Enable USART1 transmitter: UE - usart enable & TE - transmitter enable. Do not enable the receiver, we are not interested in receiving any bytes from anybody*/
+    USART1->CR1 |= USART_CR1_TE | USART_CR1_UE;
 }
 
 
-static void gpio_init(void)
-{
-    LED_GPIO->CRH |=
-        GPIOPINCONFH(BLUE_LED_PIN,
-                     GPIOCONF(GPIO_MODE_OUTPUT50MHz,
-                              GPIO_CNF_OUTPUT_PUSHPULL))
-        | GPIOPINCONFH(GREEN_LED_PIN,
-                       GPIOCONF(GPIO_MODE_OUTPUT50MHz,
-                                GPIO_CNF_OUTPUT_PUSHPULL));
-
-    USART_TX_GPIO->CRH |= 
-		GPIOPINCONFH(USART_TX_PIN,   
-					 GPIOCONF(GPIO_MODE_OUTPUT2MHz, GPIO_CNF_AFIO_PUSHPULL));  
-
-    LIGHTPORT_GPIO->CRL |=
-        GPIOPINCONFL(LIGHTPORT1_PIN,
-                     GPIOCONF(GPIO_MODE_INPUT, GPIO_CNF_INPUT_FLOATING))
-        | GPIOPINCONFL(LIGHTPORT2_PIN,
-                       GPIOCONF(GPIO_MODE_INPUT, GPIO_CNF_INPUT_FLOATING));
-}
 
 
 static void tim_init(void)
@@ -208,27 +201,38 @@ void TIM3_IRQHandler(void)
 
     uint16_t now = TIM3->CNT;
     uint16_t elapsed = 0;
-    if (TIM3->SR & TIM_SR_CC3IF) {
-        TIM3->SR &= ~(TIM_SR_CC3IF);     /* Clear the interrupt flags */
-        elapsed = now - stopwatch.time_start;
-
-        if (elapsed > TRIGGER_DEBOUNCE && stopwatch.counter == COUNTER_STARTED) {
-            LED_GPIO->BRR = (1 << GREEN_LED_PIN);  /* toggle LED state */
-            
-            stopwatch.counter = COUNTER_STOPPED;
-            stopwatch.time_elapsed = elapsed;
-        }
-    } else if (TIM3->SR & TIM_SR_CC4IF) {
-        TIM3->SR &= ~(TIM_SR_CC4IF);      /* Clear the interrupt flag */
-
+	
+	if (TIM3->SR & TIM_SR_CC4IF) {
+		/* Clear the interrupt flag */
+        TIM3->SR &= ~(TIM_SR_CC4IF);      
+		
         if (stopwatch.counter == COUNTER_READY){
-            LED_GPIO->BSRR = (1 << GREEN_LED_PIN);  /* toggle LED state */
+			/* Turn LED on to indicate stopwatch starting */
+	        LED_GPIO->BSRR = (1 << GREEN_LED_PIN); 
             
             stopwatch.counter = COUNTER_STARTED;
-            stopwatch.time_start = now;
-            stopwatch.time_elapsed = 0xFFFF;
+            stopwatch.counts_start = now;
+            stopwatch.counts_elapsed = 0xFFFF;
         }
-    }
+	} else if (TIM3->SR & TIM_SR_CC3IF) {
+        /* Clear the interrupt flags */
+		TIM3->SR &= ~(TIM_SR_CC3IF);
+		
+		/* Compute elapsed time correctly, taking into account the possibility of TIM3->CNT overflow between start and now */
+		if (now > stopwatch.counts_start) {
+	        elapsed = now - stopwatch.counts_start;			
+		} else {
+	        elapsed = (0xFFFF - stopwatch.counts_start) + now;			
+		} 
+		
+        if (elapsed > TRIGGER_DEBOUNCE && stopwatch.counter == COUNTER_STARTED) {
+			/* Turn LED off */
+	        LED_GPIO->BRR = (1 << GREEN_LED_PIN);
+            
+            stopwatch.counter = COUNTER_STOPPED;
+            stopwatch.counts_elapsed = elapsed;
+        }
+    }  
 }
 
 void SysTick_Handler(void)
