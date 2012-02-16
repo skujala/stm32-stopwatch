@@ -35,6 +35,7 @@
 
 #include "main.h"
 #include "newlib_stubs.h"
+#include "version.h"
 
 volatile uint32_t ticks = 0L;
 
@@ -68,9 +69,10 @@ int main(void)
     usart_init();
     tim_init();
 
-    delay_ms(100);
+    delay_ms(1000);
     
-    _write(1,"Oheislaitteet alustettu\r\n", 25);
+	iprintf(ANSI_CLRSCR ANSI_BOLD("STM32 Stopwatch") " rev %s, built on %s.\r\n", build_git_sha, build_git_time);
+    iprintf("Initialization complete.\r\n");
     LED_GPIO->BSRR = (1 << BLUE_LED_PIN);
 
     
@@ -80,7 +82,7 @@ int main(void)
                 LED_GPIO->ODR ^= (1 << BLUE_LED_PIN);
                 delay_ms(50);                
             }
-            iprintf("Aika: %d ms\r\n", TIMER_COUNTS_IN_MS(stopwatch.counts_elapsed));
+            iprintf("Elapsed time: " ANSI_BOLD("%d") " ms.\r\n", TIMER_COUNTS_IN_MS(stopwatch.counts_elapsed));
                 
             stopwatch_reset(&stopwatch);
         }

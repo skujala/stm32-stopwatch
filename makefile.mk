@@ -1,6 +1,3 @@
-# Hey Emacs, this is a -*- makefile -*-
-
-#
 # WinARM template makefile 
 # by Martin Thomas, Kaiserslautern, Germany 
 # <eversmith@heizung-thomas.de>
@@ -30,38 +27,15 @@
 # Toolchain prefix (i.e arm-none-eabi -> arm-none-eabi-gcc.exe)
 TCHAIN = arm-none-eabi
 
-# MCU name and submodel
-MCU      = cortex-m3
-SUBMDL   = stm32f100
-
 # must be yes - only THUMB2 on M3 no ARM:
 USE_THUMB_MODE = YES
-
-
-## Exception-Vector placement not used so far in M3-examples
-## (placement settings ignored when using "RAM_RUN")
-## - Exception vectors in ROM:
-#VECTOR_LOCATION=VECTORS_IN_ROM
-## - Exception vectors in RAM:
-##VECTOR_LOCATION=VECTORS_IN_RAM
-
-
-
 
 # While these two can stay in the CM3 folder as part of the library
 SRC += core_cm3.c system_stm32f10x.c version.c
 
-# List C source files here which must be compiled in ARM-Mode.
-# use file-extension c for "c-only"-files
-SRCARM  = 
-
 # List C++ source files here.
 # use file-extension cpp for C++-files (use extension .cpp)
 CPPSRC = 
-
-# List C++ source files here which must be compiled in ARM-Mode.
-# use file-extension cpp for C++-files (use extension .cpp)
-CPPSRCARM = 
 
 # List Assembler source files here.
 # Make them always end in a capital .S.  Files ending in a lowercase .s
@@ -72,21 +46,10 @@ CPPSRCARM =
 # care about how the name is spelled on its command-line.
 ASRC = startup_stm32f10x_md_vl.S
 
-# List Assembler source files here which must be assembled in ARM-Mode..
-ASRCARM  = 
-
 ## Output format. (can be ihex or binary)
 ## (binary i.e. for openocd, lmiflash and SAM-BA, hex i.e. for lpc21isp and uVision)
 #FORMAT = ihex
 FORMAT = binary
-
-## Configre flash tool - supported: UVISION, OPENOCD, LMIFLASH
-## use FORMAT = binary for OpenOCD and lmiflash
-## use FORMAT = ihex for uVision
-#FLASH_TOOL = UVISION
-#FLASH_TOOL = OPENOCD
-#FLASH_TOOL = LMIFLASH
-FLASH_TOOL = STM32LOADER
 
 # Optimization level, can be [0, 1, 2, 3, s]. 
 # 0 = turn off optimization. s = optimize for size.
@@ -107,27 +70,20 @@ LINKERSCRIPTPATH = ./
 LIBSTM32 = /Applications/arm/STM32F10x_StdPeriph_Lib_V3.5.0/Libraries
 CM3      = $(LIBSTM32)/CMSIS/CM3/CoreSupport
 CM3_ST   = $(LIBSTM32)/CMSIS/CM3/DeviceSupport/ST/STM32F10x
-DRIVERS  = $(LIBSTM32)/STM32F10x_StdPeriph_Driver
 STARTUP  = $(LIBSTM32)/CMSIS/CM3/DeviceSupport/ST/STM32F10x/startup/gcc_ride7
 
-vpath %.c $(DRIVERS)/src $(CM3) $(CM3_ST)
+vpath %.c $(CM3) $(CM3_ST)
 vpath %.S $(STARTUP)
 
 
 # List any extra directories to look for include files here.
 # Each directory must be separated by a space.
 # Make sure we can find the peripheral driver library include files (PH May 2009)
-EXTRAINCDIRS = $(DRIVERS)/inc $(CM3) $(CM3_ST)
+EXTRAINCDIRS = $(CM3) $(CM3_ST)
 
 # List any extra directories to look for library files here.
 # Each directory must be separated by a space.
 EXTRA_LIBDIRS = 
-
-## Using the Atmel AT91_lib produces warning with
-## the default warning-levels. 
-## yes - disable these warnings; no - keep default settings
-#AT91LIBNOWARN = yes
-AT91LIBNOWARN = no
 
 # Compiler flag to set the C Standard level.
 # c89   - "ANSI" C
@@ -145,21 +101,11 @@ CINCS =
 # Place -D or -U options for ASM here
 ADEFS =  
 
-ifdef VECTOR_LOCATION
-CDEFS += -D$(VECTOR_LOCATION)
-ADEFS += -D$(VECTOR_LOCATION)
-endif
-
-
 # Compiler flags.
 
-ifeq ($(USE_THUMB_MODE),YES)
-THUMB    = -mthumb -march=armv7 -mfix-cortex-m3-ldrd -msoft-float
-THUMB_IW = 
-else 
-THUMB    = 
-THUMB_IW = 
-endif
+# This incantation whips summon-arm-toolchain gcc to use version of newlib 
+# compiled in to thumb2 code 
+THUMB = -mthumb -march=armv7 -mfix-cortex-m3-ldrd -msoft-float
 
 #  -g*:          generate debugging information
 #  -O*:          optimization level
@@ -184,14 +130,6 @@ CFLAGS += $(patsubst %,-I%,$(EXTRAINCDIRS))
 CONLYFLAGS += -Wnested-externs 
 CONLYFLAGS += $(CSTANDARD)
 
-ifneq ($(AT91LIBNOWARN),yes)
-#AT91-lib warnings with:
-CFLAGS += -Wcast-qual
-CONLYFLAGS += -Wmissing-prototypes 
-CONLYFLAGS += -Wstrict-prototypes
-CONLYFLAGS += -Wmissing-declarations
-endif
-
 # flags only for C++ (arm-elf-g++)
 CPPFLAGS = -fno-rtti -fno-exceptions
 
@@ -208,11 +146,6 @@ ASFLAGS = $(ADEFS) -Wa,-adhlns=$(<:.S=.lst),--g$(DEBUG)
 #    Each library-name must be seperated by a space.
 #    To add libxyz.a, libabc.a and libefsl.a: 
 #    EXTRA_LIBS = xyz abc efsl
-#EXTRA_LIBS = efsl
-#EXTRA_LIBS = luminary
-
-#Support for newlibc-lpc (file: libnewlibc-lpc.a)
-#NEWLIBLPC = -lnewlib-lpc
 
 MATH_LIB = -lm
 
@@ -223,17 +156,13 @@ MATH_LIB = -lm
 #    -Map:      create map file
 #    --cref:    add cross reference to  map file
 LDFLAGS = -nostartfiles -Wl,-Map=$(TARGET).map,--cref,--gc-sections
-LDFLAGS += -lc
-LDFLAGS += $(NEWLIBLPC) $(MATH_LIB)
+LDFLAGS += $(MATH_LIB)
 LDFLAGS += -lc -lgcc 
 LDFLAGS += $(CPLUSPLUS_LIB)
 LDFLAGS += $(patsubst %,-L%,$(EXTRA_LIBDIRS))
 LDFLAGS += $(patsubst %,-l%,$(EXTRA_LIBS))
 
-# Set Linker-Script Depending On Selected Memory and Controller
-# Just use the STM32F103RBT6 linker script (PH May 2009)
 # This needs making processor dependant
-#LDFLAGS +=-T$(LINKERSCRIPTPATH)stm32f10x_flash_md.ld
 LDFLAGS +=-T$(LINKERSCRIPTPATH)stm32f10x_flash_md_vl.ld
 
 # ---------------------------------------------------------------------------
@@ -272,6 +201,7 @@ MSG_ASSEMBLING_ARM = "Assembling (ARM-only):"
 MSG_CLEANING = Cleaning project:
 MSG_FORMATERROR = Can not handle output-format
 MSG_LPC21_RESETREMINDER = You may have to bring the target in bootloader-mode now.
+MSG_VERSION = "Creating build info from git"
 
 # Define all object files.
 COBJ      = $(SRC:.c=.o) 
@@ -294,7 +224,6 @@ GENDEPFLAGS = -MD -MP -MF .dep/$(@F).d
 # Add target processor to flags.
 ALL_CFLAGS  = $(THUMB_IW) -I. $(CFLAGS) $(GENDEPFLAGS) -DSTM32F10X_MD_VL
 ALL_ASFLAGS = $(THUMB_IW) -I. -x assembler-with-cpp $(ASFLAGS)
-
 
 # Default target.
 all: begin gccversion sizebefore build sizeafter finished end
@@ -338,38 +267,10 @@ sizebefore:
 
 sizeafter:
 	@if [ -f $(TARGET).elf ]; then echo; echo $(MSG_SIZE_AFTER); $(ELFSIZE); echo; fi
-#	echo $(MSG_SIZE_AFTER)
-#	$(ELFSIZE)
 
 # Display compiler version information.
 gccversion : 
 	@$(CC) --version
-
-
-# Program the device with Keil's uVision (needs configured uVision-Workspace). 
-program: $(TARGET).$(IMGEXT)
-	@echo
-ifeq ($(FLASH_TOOL),UVISION)
-	@echo "Flash-programming with uVision"
-	C:\Keil\uv3\Uv3.exe -f ../../tools/uvisionflash811.uv2 -ouvisionflash.txt
-else
-ifeq ($(FLASH_TOOL),OPENOCD)
-	@echo "Flash-programming with OpenOCD"
-	cp $(TARGET).bin ../../tools/tmpflash.bin
-	cd ../../tools && make program
-	rm ../../tools/tmpflash.bin
-else
-ifeq ($(FLASH_TOOL),LMIFLASH)
-	@echo "Flash-programming with lmiflash"
-	../../tools/lmiflash.exe -f $(TARGET).$(IMGEXT) -v -r
-else
-ifeq ($(FLASH_TOOL),STM32LOADER)
-	@echo "Flash programming with stm32loader.py"
-	stm32loader.py -evw $(TARGET).$(IMGEXT)
-endif
-endif
-endif
-endif
 
 # Create final output file (.hex) from ELF output file.
 %.hex: %.elf
@@ -401,14 +302,11 @@ endif
 
 # Link: create ELF output file from object files.
 .SECONDARY : $(TARGET).elf
-.PRECIOUS : $(AOBJARM) $(AOBJ) $(COBJARM) $(COBJ) $(CPPOBJ) $(CPPOBJARM)
-%.elf:  $(AOBJARM) $(AOBJ) $(COBJARM) $(COBJ) $(CPPOBJ) $(CPPOBJARM)
+.PRECIOUS : $(AOBJ) $(COBJ) $(CPPOBJ)
+%.elf:  $(AOBJ) $(COBJ) $(CPPOBJ)
 	@echo
 	@echo $(MSG_LINKING) $@
-	$(CC) $(THUMB) $(ALL_CFLAGS) $(AOBJARM) $(AOBJ) $(COBJARM) $(COBJ) $(CPPOBJ) $(CPPOBJARM) --output $@ $(LDFLAGS)
-#	arm-elf-gcc $(THUMB) $(ALL_CFLAGS) $(AOBJARM) $(AOBJ) $(COBJARM) $(COBJ) $(CPPOBJ) $(CPPOBJARM) --output $@ $(LDFLAGS)
-#	$(CPP) $(THUMB) $(ALL_CFLAGS) $(AOBJARM) $(AOBJ) $(COBJARM) $(COBJ) $(CPPOBJ) $(CPPOBJARM) --output $@ $(LDFLAGS)
-## mist arm-elf-ld -Map=$(TARGET).map --cref --gc-sections $(AOBJARM) $(AOBJ) $(COBJARM) $(COBJ) $(CPPOBJ) $(CPPOBJARM) --output $@
+	$(CC) $(THUMB) $(ALL_CFLAGS) $(AOBJ) $(COBJ) $(CPPOBJ) --output $@ $(LDFLAGS)
 
 # Compile: create object files from C source files. ARM/Thumb
 $(COBJ) : %.o : %.c
@@ -416,30 +314,11 @@ $(COBJ) : %.o : %.c
 	@echo $(MSG_COMPILING) $<
 	$(CC) -c $(THUMB) $(ALL_CFLAGS) $(CONLYFLAGS) $< -o $@ 
 
-# Compile: create object files from C source files. ARM-only
-$(COBJARM) : %.o : %.c
-	@echo
-	@echo $(MSG_COMPILING_ARM) $<
-	$(CC) -c $(ALL_CFLAGS) $(CONLYFLAGS) $< -o $@ 
-
 # Compile: create object files from C++ source files. ARM/Thumb
 $(CPPOBJ) : %.o : %.cpp
 	@echo
 	@echo $(MSG_COMPILINGCPP) $<
 	$(CPP) -c $(THUMB) $(ALL_CFLAGS) $(CPPFLAGS) $< -o $@ 
-
-# Compile: create object files from C++ source files. ARM-only
-$(CPPOBJARM) : %.o : %.cpp
-	@echo
-	@echo $(MSG_COMPILINGCPP_ARM) $<
-	$(CPP) -c $(ALL_CFLAGS) $(CPPFLAGS) $< -o $@ 
-
-
-# Compile: create assembler files from C source files. ARM/Thumb
-## does not work - TODO - hints welcome
-##$(COBJ) : %.s : %.c
-##	$(CC) $(THUMB) -S $(ALL_CFLAGS) $< -o $@
-
 
 # Assemble: create object files from assembler source files. ARM/Thumb
 $(AOBJ) : %.o : %.S
@@ -447,22 +326,15 @@ $(AOBJ) : %.o : %.S
 	@echo $(MSG_ASSEMBLING) $<
 	$(CC) -c $(THUMB) $(ALL_ASFLAGS) $< -o $@
 
-
-# Assemble: create object files from assembler source files. ARM-only
-$(AOBJARM) : %.o : %.S
-	@echo
-	@echo $(MSG_ASSEMBLING_ARM) $<
-	$(CC) -c $(ALL_ASFLAGS) $< -o $@
-
 # Generate version and build info from git
 # Shameless copy from http://stackoverflow.com/questions/1704907/how-can-i-get-my-c-code-to-automatically-print-out-its-git-version-hash 
 version.c: force
+	@echo
+	@echo $(MSG_VERSION)
 	$(GIT) rev-parse HEAD | awk ' BEGIN {print "#include \"version.h\""} {print "const char build_git_sha[] = \"" $$0"\";"} END {}' > version.c
 	date | awk 'BEGIN {} {print "const char build_git_time[] = \""$$0"\";"} END {} ' >> version.c
 
 force: ;
-
-
 
 # Target: clean project.
 clean: begin clean_list finished end
@@ -497,11 +369,8 @@ clean_list :
 	$(REMOVE) $(CPPSRCARM:.cpp=.s) 
 	$(REMOVE) $(CPPSRCARM:.cpp=.d)
 	$(REMOVE) .dep/*
+	$(REMOVE) version.c
 #	$(REMOVEDIR) .dep
-# remove files created by uVision during flash programming
-	$(REMOVE) $(TARGET).hex.plg
-	$(REMOVE) uvisionflash.txt
-
 
 # Include the dependency files.
 -include $(shell mkdir .dep 2>/dev/null) $(wildcard .dep/*)
@@ -509,5 +378,5 @@ clean_list :
 
 # Listing of phony targets.
 .PHONY : all begin finish end sizebefore sizeafter gccversion \
-build elf hex bin lss sym clean clean_list program
+build elf hex bin lss sym clean clean_list program version
 

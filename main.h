@@ -69,7 +69,7 @@ Light port 2 is connected to PB0, which is alternate function to TIM3_CH3
 #define CONF_GPIOH(gpio, pin, mode, cnf) do { (gpio)->CRH = ((gpio)->CRH & CONFMASKH((pin))) | GPIOPINCONFH((pin), GPIOCONF((mode), (cnf))); } while(0)
 #define CONF_GPIOL(gpio, pin, mode, cnf) do { (gpio)->CRL = ((gpio)->CRL & CONFMASKL((pin))) | GPIOPINCONFL((pin), GPIOCONF((mode), (cnf))); } while(0)		
 
-#define TIMER_RESOLUTION			2000
+#define TIMER_RESOLUTION			1000
 #define TIMER_SCALE					1000
 #define TIMER_COUNTS_IN_MS(counts) 	(TIMER_SCALE * (counts) / TIMER_RESOLUTION)
 		
@@ -78,6 +78,8 @@ Light port 2 is connected to PB0, which is alternate function to TIM3_CH3
 
 #define STDOUT_USART				1
 
+#define ANSI_CLRSCR					"\x1b[2J\x1b[;H"
+#define ANSI_BOLD(text)				"\x1b[1m" text "\x1b[0m"
 
 enum counter_states {
     COUNTER_READY = 0x0,
@@ -92,4 +94,4 @@ struct stopwatch {
 };
 
 
-#endif                          /* end of include guard: MAIN_H_3P6METYV */
+#endif /* end of include guard: MAIN_H_3P6METYV */
