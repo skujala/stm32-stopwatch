@@ -332,6 +332,7 @@ version.c: force
 	@echo
 	@echo $(MSG_VERSION)
 	$(GIT) rev-parse HEAD | awk ' BEGIN {print "#include \"version.h\""} {print "const char build_git_sha[] = \"" $$0"\";"} END {}' > version.c
+	$(GIT) describe | awk 'BEGIN {} {print "const char build_git_description[] = \""$$0"\";"} END {} ' >> version.c
 	date | awk 'BEGIN {} {print "const char build_git_time[] = \""$$0"\";"} END {} ' >> version.c
 
 force: ;

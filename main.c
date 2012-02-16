@@ -1,5 +1,5 @@
 /*     
-    Copyright (c) 2012, Sami Kujala
+    Copyright (c) 2012 Sami Kujala
        All rights reserved.
     
     Redistribution and use in source and binary forms, with or without
@@ -71,7 +71,7 @@ int main(void)
 
     delay_ms(1000);
     
-	iprintf(ANSI_CLRSCR ANSI_BOLD("STM32 Stopwatch") " rev %s, built on %s.\r\n", build_git_sha, build_git_time);
+	iprintf(ANSI_CLRSCR ANSI_BOLD("STM32 Stopwatch") " rev %s, built on %s.\r\n", build_git_description, build_git_time);
     iprintf("Initialization complete.\r\n");
     LED_GPIO->BSRR = (1 << BLUE_LED_PIN);
 
